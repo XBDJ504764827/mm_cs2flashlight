@@ -1,45 +1,41 @@
 /**
- * vim: set ts=4 sw=4 tw=99 noet :
- * ======================================================
- * Metamod:Source Sample Plugin
- * Written by AlliedModders LLC.
- * ======================================================
- *
- * This software is provided 'as-is', without any express or implied warranty.
- * In no event will the authors be held liable for any damages arising from 
- * the use of this software.
- *
- * This sample plugin is public domain.
+ * CS2 Flashlight Metamod:Source plugin.
  */
 
-#ifndef _INCLUDE_METAMOD_SOURCE_PLUGIN_H_
-#define _INCLUDE_METAMOD_SOURCE_PLUGIN_H_
+#ifndef CS2_FLASHLIGHT_PLUGIN_H
+#define CS2_FLASHLIGHT_PLUGIN_H
 
 #include <ISmmPlugin.h>
-#include <igameevents.h>
-#include <sh_vector.h>
+#include <eiface.h>
+#include <tier1/convar.h>
+
 #include "version_gen.h"
 
-
-class MMSPlugin : public ISmmPlugin, public IMetamodListener
+class MMSPlugin final : public ISmmPlugin, public IMetamodListener
 {
 public:
-	bool Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, bool late);
-	bool Unload(char *error, size_t maxlen);
-	void AllPluginsLoaded();
-public:
-	const char *GetAuthor() { return PLUGIN_AUTHOR; }
-	const char *GetName() { return PLUGIN_DISPLAY_NAME; }
-	const char *GetDescription() { return PLUGIN_DESCRIPTION; }
-	const char *GetURL() { return PLUGIN_URL; }
-	const char *GetLicense() { return PLUGIN_LICENSE; }
-	const char *GetVersion() { return PLUGIN_FULL_VERSION; }
-	const char *GetDate() { return __DATE__; }
-	const char *GetLogTag() { return PLUGIN_LOGTAG; }
+	bool Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, bool late) override;
+	bool Unload(char *error, size_t maxlen) override;
+
+	const char *GetAuthor() override { return PLUGIN_AUTHOR; }
+	const char *GetName() override { return PLUGIN_DISPLAY_NAME; }
+	const char *GetDescription() override { return PLUGIN_DESCRIPTION; }
+	const char *GetURL() override { return PLUGIN_URL; }
+	const char *GetLicense() override { return PLUGIN_LICENSE; }
+	const char *GetVersion() override { return PLUGIN_FULL_VERSION; }
+	const char *GetDate() override { return __DATE__; }
+	const char *GetLogTag() override { return PLUGIN_LOGTAG; }
+
+private:
+	void OnClientCommand(CPlayerSlot slot, const CCommand &args);
+	bool IsFlashlightCommand(const CCommand &args) const;
+	void ForwardFlashlightCommand(CPlayerSlot slot);
+
+	bool m_clientCommandHooked = false;
 };
 
 extern MMSPlugin g_ThisPlugin;
 
 PLUGIN_GLOBALVARS();
 
-#endif //_INCLUDE_METAMOD_SOURCE_PLUGIN_H_
+#endif // CS2_FLASHLIGHT_PLUGIN_H
