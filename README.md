@@ -184,7 +184,9 @@ Schema 字段偏移在运行时从 `ISchemaSystem` 获取，不写死到代码�
 ├── configure.py            # 构建参数入口
 ├── plugin-metadata.json    # 插件名称、作者和版本模板
 ├── scripts/
-│   ├── bump_version.py     # 自动递增 patch 版本
+│   ├── release_version.py  # 根据 Git 标签计算并写入发布版本
+│   ├── test_release_version.py
+│   ├── bump_version.py     # 手动递增版本的兼容脚本
 │   ├── test_bump_version.py
 │   └── test_gamedata.py    # gamedata 完整性检查
 ├── .github/workflows/ci.yml # CI、构建和自动版本更新
@@ -202,22 +204,24 @@ Schema 字段偏移在运行时从 `ISchemaSystem` 获取，不写死到代码�
 - 校验二进制、VDF 和 gamedata 的安装目录结构
 - 上传 `build/package` 构建产物
 
-当 `develop` 合并到 `main`，或者其他提交推送到 `main` 后，CI 还会：
+当 `develop` 合并到 `main`（也就是产生一次 `main` push），CI 还会：
 
 - 将 `build/package/cs2/` 下的 `addons/` 目录打包为可直接安装的 ZIP。
-- 创建 GitHub Release，例如 `CS2 Flashlight v1.0.0`。
-- 上传 `cs2-flashlight-1.0.0-linux-x86_64.zip` 作为 Release 附件。
-- 使用 `v1.0.0` 作为 Release tag，并自动生成 Release Notes。
+- 根据已有的 `vX.Y.Z` 标签计算下一个 patch 版本，例如已有 `v1.0.0` 时发布 `v1.0.1`。
+- 在构建前把本次版本写入插件元数据，因此二进制中的版本号与 Release 一致。
+- 创建 GitHub Release，例如 `CS2 Flashlight v1.0.1`，并上传 `cs2-flashlight-1.0.1-linux-x86_64.zip`。
+- 将标签明确指向本次 `main` 合并提交，并自动生成 Release Notes。
+- 发布成功后把相同版本同步回 `main` 的 `plugin-metadata.json`。
 
 Release 压缩包的根目录是 `addons/`，解压目标就是 CS2 服务端的 `game/csgo/`，不需要再次移动目录。
 
-Release 发布完成后，CI 会自动执行 `scripts/bump_version.py`，将插件的 patch 版本递增。例如：
+同一个 `main` 提交重复运行工作流时，如果标签已经指向该提交，CI 会复用该版本并更新同一个 Release，不会额外递增版本。例如：
 
 ```text
-1.0.0.{{git-shorthash}} -> 1.0.1.{{git-shorthash}}
+v1.0.1 -> v1.0.1
 ```
 
-自动提交使用 `[skip ci]`，不会造成版本更新工作流循环。编译版本还会包含 Git short hash，便于定位具体构建。
+新的 `main` 合并提交才会递增版本；`develop` 分支和 Pull Request 只执行检查、构建和构建产物上传，不创建 Release。版本同步提交使用 `[skip ci]`，且由 `GITHUB_TOKEN` 推送，不会造成工作流循环。编译版本还会包含 Git short hash，便于定位具体构建。
 
 ## 直接依赖
 
