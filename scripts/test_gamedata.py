@@ -24,6 +24,7 @@ class GameDataTests(unittest.TestCase):
 
         required = {
             "game_entity_system_offset",
+            "teleport_virtual_index",
             "create_entity_by_name",
             "dispatch_spawn",
             "accept_input",
@@ -32,8 +33,10 @@ class GameDataTests(unittest.TestCase):
 
         for platform in ("linux", "windows"):
             self.assertEqual(set(sections[platform]), required)
-            self.assertGreaterEqual(int(sections[platform]["game_entity_system_offset"]), 0)
-            for key in required - {"game_entity_system_offset"}:
+            numeric = {"game_entity_system_offset", "teleport_virtual_index"}
+            for key in numeric:
+                self.assertGreaterEqual(int(sections[platform][key]), 0)
+            for key in required - numeric:
                 self.assertRegex(sections[platform][key], pattern)
 
 
