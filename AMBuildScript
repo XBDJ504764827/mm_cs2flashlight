@@ -114,14 +114,14 @@ class MMSPluginConfig(object):
     self.target_archs = set()
 
     self.metadata = {
-      'name': 'sample_mm',
-      'alias': 'sample',
-      'display_name': 'Sample Plugin',
-      'description': 'Sample basic plugin',
-      'author': 'AlliedModders LLC',
-      'url': 'http://www.sourcemm.net/',
-      'log_tag': 'SAMPLE',
-      'license': 'Public Domain',
+      'name': 'cs2_flashlight',
+      'alias': 'flashlight',
+      'display_name': 'CS2 Flashlight',
+      'description': 'Toggle the CS2 flashlight with the F key',
+      'author': 'XBDJ504764827',
+      'url': 'https://github.com/XBDJ504764827/mm_cs2flashlight',
+      'log_tag': 'CS2FLASHLIGHT',
+      'license': 'MIT',
       'version': '1.0.0.{{git-shorthash}}',
     }
 

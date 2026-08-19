@@ -1,0 +1,86 @@
+name: Build and verify
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cs2-flashlight-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Python checks
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Run version script tests
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - name: Validate metadata JSON
+        run: python3 -m json.tool plugin-metadata.json >/dev/null
+
+  build:
+    name: Build plugin
+    runs-on: ubuntu-24.04
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install AMBuild
+        run: |
+          git clone --depth 1 https://github.com/alliedmodders/ambuild.git "$RUNNER_TEMP/ambuild"
+          python3 -m pip install --disable-pip-version-check --no-cache-dir "$RUNNER_TEMP/ambuild"
+      - name: Initialize SDK submodules
+        run: git submodule update --init --recursive
+      - name: Configure and build
+        run: |
+          mkdir build
+          cd build
+          python3 ../configure.py \
+            --enable-optimize \
+            --targets=x86_64
+          ambuild
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: cs2-flashlight-package
+          path: build/package
+          if-no-files-found: error
+
+  bump-version:
+    name: Bump version after main
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    needs: build
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Increment patch version
+        run: python3 scripts/bump_version.py
+      - name: Commit version update
+        run: |
+          if git diff --quiet -- plugin-metadata.json; then
+            echo "Version is already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add plugin-metadata.json
+          git commit -m "chore: bump plugin version [skip ci]"
+          git push
