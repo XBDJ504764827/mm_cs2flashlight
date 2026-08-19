@@ -32,11 +32,12 @@ jobs:
     runs-on: ubuntu-24.04
     needs: checks
     outputs:
-      release_version: ${{ steps.archive.outputs.release_version }}
+      release_version: ${{ steps.version.outputs.release_version }}
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: false
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
@@ -46,6 +47,17 @@ jobs:
           python3 -m pip install --disable-pip-version-check --no-cache-dir "$RUNNER_TEMP/ambuild"
       - name: Initialize SDK submodules
         run: git submodule update --init --recursive
+      - name: Resolve build version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" && "${{ github.actor }}" != "github-actions[bot]" ]]; then
+            release_version="$(python3 scripts/release_version.py --write)"
+          else
+            release_version="$(python3 scripts/release_version.py --current)"
+          fi
+          echo "release_version=${release_version}" >> "$GITHUB_OUTPUT"
+          echo "Build version: ${release_version}"
       - name: Configure and build
         run: |
           mkdir build
@@ -70,7 +82,7 @@ jobs:
         id: archive
         shell: bash
         run: |
-          release_version="$(python3 -c 'import json; import re; value=json.load(open("plugin-metadata.json", encoding="utf-8"))["version"]; print(re.sub(r"\.\{\{git-[^}]+\}\}$", "", value))')"
+          release_version="${{ steps.version.outputs.release_version }}"
           archive_name="cs2-flashlight-${release_version}-linux-x86_64.zip"
           mkdir -p release
           ARCHIVE_NAME="$archive_name" python3 - <<'PY'
@@ -113,24 +125,26 @@ jobs:
         with:
           tag_name: v${{ needs.build.outputs.release_version }}
           name: CS2 Flashlight v${{ needs.build.outputs.release_version }}
+          target_commitish: ${{ github.sha }}
           generate_release_notes: true
           files: release/*.zip
 
-  bump-version:
-    name: Bump version after main
+  sync-version:
+    name: Synchronize released version
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
-    needs: build
+    needs: [build, release]
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Increment patch version
-        run: python3 scripts/bump_version.py
-      - name: Commit version update
+      - name: Write released version
+        run: python3 scripts/release_version.py --set-version "${{ needs.build.outputs.release_version }}" --write
+      - name: Commit released version
         run: |
           if git diff --quiet -- plugin-metadata.json; then
             echo "Version is already up to date"
@@ -139,5 +153,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add plugin-metadata.json
-          git commit -m "chore: bump plugin version [skip ci]"
-          git push
+          git commit -m "chore: synchronize v${{ needs.build.outputs.release_version }} [skip ci]"
+          git push origin HEAD:main
