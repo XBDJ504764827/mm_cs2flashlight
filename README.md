@@ -24,8 +24,8 @@ bind f "impulse 100"
 
 ### 使用构建包
 
-1. 从构建产物或 Release 下载插件包。
-2. 将包内的内容复制到 CS2 服务端根目录，通常是 `game/csgo/`。
+1. 从 GitHub Releases 下载最新的 `cs2-flashlight-X.Y.Z-linux-x86_64.zip`。
+2. 将压缩包内的内容复制到 CS2 服务端的 `game/csgo/` 目录。
 3. 保持目录结构不变。Linux 64 位插件的目标路径为：
 
    ```text
@@ -60,9 +60,11 @@ bind f "impulse 100"
                     └── cs2_flashlight.so
 ```
 
-将 `build/package/` 下的内容复制到 `/srv/cs2/game/csgo/`：
+将 Release 压缩包解压到 `/srv/cs2/game/csgo/`，或者将本地构建包复制到该目录：
 
 ```sh
+unzip cs2-flashlight-X.Y.Z-linux-x86_64.zip -d /srv/cs2/game/csgo/
+# 本地源码构建包也可以这样部署：
 cp -a build/package/cs2/. /srv/cs2/game/csgo/
 ```
 
@@ -188,7 +190,16 @@ build/package/
 - 使用真实 Metamod/CS2 SDK 的 Linux x86_64 AMBuild 构建
 - 上传 `build/package` 构建产物
 
-当代码成功推送或合并到 `main` 后，CI 会自动执行 `scripts/bump_version.py`，将插件的 patch 版本递增。例如：
+当 `develop` 合并到 `main`，或者其他提交推送到 `main` 后，CI 还会：
+
+- 将 `build/package/cs2/` 下的 `addons/` 目录打包为可直接安装的 ZIP。
+- 创建 GitHub Release，例如 `CS2 Flashlight v1.0.0`。
+- 上传 `cs2-flashlight-1.0.0-linux-x86_64.zip` 作为 Release 附件。
+- 使用 `v1.0.0` 作为 Release tag，并自动生成 Release Notes。
+
+Release 压缩包的根目录是 `addons/`，解压目标就是 CS2 服务端的 `game/csgo/`，不需要再次移动目录。
+
+Release 发布完成后，CI 会自动执行 `scripts/bump_version.py`，将插件的 patch 版本递增。例如：
 
 ```text
 1.0.0.{{git-shorthash}} -> 1.0.1.{{git-shorthash}}

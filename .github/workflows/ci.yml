@@ -31,6 +31,8 @@ jobs:
     name: Build plugin
     runs-on: ubuntu-24.04
     needs: checks
+    outputs:
+      release_version: ${{ steps.archive.outputs.release_version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,6 +60,56 @@ jobs:
           name: cs2-flashlight-package
           path: build/package
           if-no-files-found: error
+
+      - name: Create installation archive
+        id: archive
+        shell: bash
+        run: |
+          release_version="$(python3 -c 'import json; import re; value=json.load(open("plugin-metadata.json", encoding="utf-8"))["version"]; print(re.sub(r"\.\{\{git-[^}]+\}\}$", "", value))')"
+          archive_name="cs2-flashlight-${release_version}-linux-x86_64.zip"
+          mkdir -p release
+          ARCHIVE_NAME="$archive_name" python3 - <<'PY'
+          import os
+          from pathlib import Path
+          from zipfile import ZIP_DEFLATED, ZipFile
+
+          package_root = Path("build/package/cs2")
+          archive_path = Path("release") / os.environ["ARCHIVE_NAME"]
+          with ZipFile(archive_path, "w", ZIP_DEFLATED) as archive:
+              for path in (package_root / "addons").rglob("*"):
+                  if path.is_file():
+                      archive.write(path, path.relative_to(package_root).as_posix())
+          PY
+          echo "release_version=${release_version}" >> "$GITHUB_OUTPUT"
+          echo "archive_name=${archive_name}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload installation archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: cs2-flashlight-release
+          path: release/*.zip
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    needs: build
+    permissions:
+      contents: write
+    steps:
+      - name: Download installation archive
+        uses: actions/download-artifact@v4
+        with:
+          name: cs2-flashlight-release
+          path: release
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.build.outputs.release_version }}
+          name: CS2 Flashlight v${{ needs.build.outputs.release_version }}
+          generate_release_notes: true
+          files: release/*.zip
 
   bump-version:
     name: Bump version after main
