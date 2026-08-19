@@ -10,7 +10,8 @@
 - 读取 CS2 原生 `IN_LOOK_AT_WEAPON` 输入位，支持玩家默认的 F 检视键。
 - 同时检查“当前按下”和“本帧变化”状态，一次按键只切换一次手电筒。
 - 保留原版武器检视动作，不拦截 F，也不修改玩家的客户端按键绑定。
-- 在服务端创建带官方 flashlight cookie 的 `light_barn`，并附着到玩家视角方向。
+- 在服务端创建带官方 flashlight cookie 的 `light_barn`，每帧同步玩家完整视角，支持水平和垂直照射。
+- 使用增强的 `3.0` 灯光亮度，改善暗区中的可见距离和照明效果。
 - 玩家死亡、断开、换图或插件卸载时自动清理灯光实体。
 - 实体字段通过 Source 2 Schema 动态解析；少量引擎内部函数通过随包发布的 gamedata 定位。
 - 自动生成 Metamod VDF 文件并打包 Linux CS2 插件。
@@ -166,9 +167,10 @@ build/package/
 
 1. 每帧通过玩家 `CPlayer_MovementServices::m_nButtons` 读取输入状态。
 2. 当 `IN_LOOK_AT_WEAPON` 同时出现在按下状态和变化状态中时，确认这是一次新的 F 按键。
-3. 首次按键创建 `light_barn`，配置亮度、范围、阴影和官方 `flashlight.vtex` light cookie，再附着到玩家的 `clip_limit`。
-4. 后续按键向灯光实体发送 `Enable` 或 `Disable` 输入。
-5. 插件不消费原始输入，因此 CS2 原版武器检视继续正常执行。
+3. 首次按键创建 `light_barn`，配置增强亮度、范围、阴影和官方 `flashlight.vtex` light cookie。
+4. 启用期间每帧使用玩家眼睛位置和完整视角角度更新灯光，因此上下和左右转动都会同步。
+5. 后续按键向灯光实体发送 `Enable` 或 `Disable` 输入。
+6. 插件不消费原始输入，因此 CS2 原版武器检视继续正常执行。
 
 Schema 字段偏移在运行时从 `ISchemaSystem` 获取，不写死到代码中。`CreateEntityByName`、`DispatchSpawn` 和 `CEntityInstance_AcceptInput` 属于未公开的游戏函数，其平台签名保存在 `gamedata/cs2_flashlight.games.txt`；CS2 大型更新后可能需要更新该文件。
 

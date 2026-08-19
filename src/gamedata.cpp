@@ -86,16 +86,24 @@ bool FlashlightGameData::Load(const char *path, char *error, size_t maxlen)
 		const std::string key = Trim(line.substr(0, separator));
 		const std::string value = Trim(line.substr(separator + 1));
 
-		if (key == "game_entity_system_offset")
+		if (key == "game_entity_system_offset" || key == "teleport_virtual_index")
 		{
 			char *end = nullptr;
 			const long parsed = std::strtol(value.c_str(), &end, 10);
 			if (end == value.c_str() || *end != '\0' || parsed < 0)
 			{
-				SetError(error, maxlen, "Invalid game entity system offset: %s", value.c_str());
+				SetError(error, maxlen, "Invalid numeric gamedata value: %s", value.c_str());
 				return false;
 			}
-			gameEntitySystemOffset = static_cast<int>(parsed);
+
+			if (key == "game_entity_system_offset")
+			{
+				gameEntitySystemOffset = static_cast<int>(parsed);
+			}
+			else
+			{
+				teleportVirtualIndex = static_cast<int>(parsed);
+			}
 		}
 		else if (key == "create_entity_by_name")
 		{
@@ -111,7 +119,7 @@ bool FlashlightGameData::Load(const char *path, char *error, size_t maxlen)
 		}
 	}
 
-	if (gameEntitySystemOffset < 0 || createEntityByName.empty() ||
+	if (gameEntitySystemOffset < 0 || teleportVirtualIndex < 0 || createEntityByName.empty() ||
 			dispatchSpawn.empty() || acceptInput.empty())
 	{
 		SetError(error, maxlen, "Gamedata is incomplete for platform: %s", currentPlatform.c_str());

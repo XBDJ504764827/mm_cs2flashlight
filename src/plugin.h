@@ -43,6 +43,7 @@ private:
 			const char *name, uint64 xuid, const char *networkId);
 	void UpdateEntitySystem();
 	CEntityInstance *CreatePlayerLight(CEntityInstance *pawn);
+	void UpdatePlayerLightTransform(CEntityInstance *pawn, CEntityInstance *light);
 	void TogglePlayerLight(int slot, CEntityInstance *pawn,
 			const CEntityHandle &pawnHandle);
 	void RemovePlayerLight(int slot);

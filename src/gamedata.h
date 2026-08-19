@@ -7,6 +7,7 @@
 struct FlashlightGameData
 {
 	int gameEntitySystemOffset = -1;
+	int teleportVirtualIndex = -1;
 	std::string createEntityByName;
 	std::string dispatchSpawn;
 	std::string acceptInput;

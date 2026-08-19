@@ -24,6 +24,10 @@
 
 namespace
 {
+	constexpr float kFlashlightBrightness = 3.0f;
+	constexpr float kFlashlightForwardOffset = 54.0f;
+	constexpr float kPlayerEyeHeight = 64.0f;
+
 	IServerGameDLL *g_server = nullptr;
 	IServerGameClients *g_gameClients = nullptr;
 	IVEngineServer *g_engineServer = nullptr;
@@ -35,6 +39,8 @@ namespace
 	using DispatchSpawnFn = void (*)(CEntityInstance *, CEntityKeyValues *);
 	using AcceptInputFn = void (*)(CEntityInstance *, const char *, CEntityInstance *,
 			CEntityInstance *, variant_t *);
+	using TeleportFn = void (*)(CEntityInstance *, const Vector *, const QAngle *,
+			const Vector *);
 
 	CreateEntityByNameFn g_createEntityByName = nullptr;
 	DispatchSpawnFn g_dispatchSpawn = nullptr;
@@ -125,6 +131,14 @@ namespace
 	{
 		variant_t value(parameter);
 		g_acceptInput(entity, input, activator, nullptr, &value);
+	}
+
+	void Teleport(CEntityInstance *entity, const Vector *position, const QAngle *angles)
+	{
+		void **virtualTable = *reinterpret_cast<void ***>(entity);
+		auto teleport = reinterpret_cast<TeleportFn>(
+				virtualTable[g_gameData.teleportVirtualIndex]);
+		teleport(entity, position, angles, nullptr);
 	}
 }
 
@@ -302,6 +316,12 @@ void MMSPlugin::OnGameFrame(bool simulating, bool firstTick, bool lastTick)
 		{
 			TogglePlayerLight(slot, pawn, pawnHandle);
 		}
+
+		CEntityInstance *light = g_entitySystem->GetEntityInstance(m_playerLights[slot]);
+		if (light != nullptr && m_lightEnabled[slot])
+		{
+			UpdatePlayerLightTransform(pawn, light);
+		}
 	}
 
 	RETURN_META(MRES_IGNORED);
@@ -333,13 +353,6 @@ CEntityInstance *MMSPlugin::CreatePlayerLight(CEntityInstance *pawn)
 		return nullptr;
 	}
 
-	const QAngle eyeAngles = Field<QAngle>(pawn, g_offsets.pawnEyeAngles);
-	Vector origin = Field<Vector>(sceneNode, g_offsets.sceneAbsOrigin);
-	Vector forward;
-	AngleVectors(eyeAngles, &forward);
-	origin.z += 64.0f;
-	origin += forward * 54.0f;
-
 	CEntityInstance *light = g_createEntityByName("light_barn", -1);
 	if (light == nullptr)
 	{
@@ -348,7 +361,7 @@ CEntityInstance *MMSPlugin::CreatePlayerLight(CEntityInstance *pawn)
 
 	Field<bool>(light, g_offsets.lightEnabled) = false;
 	Field<Color>(light, g_offsets.lightColor).SetColor(255, 255, 255, 255);
-	Field<float>(light, g_offsets.lightBrightness) = 1.0f;
+	Field<float>(light, g_offsets.lightBrightness) = kFlashlightBrightness;
 	Field<float>(light, g_offsets.lightRange) = 2048.0f;
 	Field<float>(light, g_offsets.lightSoftX) = 1.0f;
 	Field<float>(light, g_offsets.lightSoftY) = 1.0f;
@@ -360,14 +373,35 @@ CEntityInstance *MMSPlugin::CreatePlayerLight(CEntityInstance *pawn)
 
 	auto *keyValues = new CEntityKeyValues();
 	keyValues->SetString("lightcookie", "materials/effects/lightcookies/flashlight.vtex");
-	keyValues->SetVector("origin", origin);
-	keyValues->SetQAngle("angles", eyeAngles);
 	g_dispatchSpawn(light, keyValues);
 
-	AcceptInput(light, "SetParent", "!activator", pawn);
-	AcceptInput(light, "SetParentAttachmentMaintainOffset", "clip_limit");
+	UpdatePlayerLightTransform(pawn, light);
 	light->NetworkStateChanged(NetworkStateChangedData(true));
 	return light;
+}
+
+void MMSPlugin::UpdatePlayerLightTransform(CEntityInstance *pawn, CEntityInstance *light)
+{
+	void *bodyComponent = Field<void *>(pawn, g_offsets.entityBodyComponent);
+	if (bodyComponent == nullptr)
+	{
+		return;
+	}
+
+	void *sceneNode = Field<void *>(bodyComponent, g_offsets.bodySceneNode);
+	if (sceneNode == nullptr)
+	{
+		return;
+	}
+
+	const QAngle eyeAngles = Field<QAngle>(pawn, g_offsets.pawnEyeAngles);
+	Vector origin = Field<Vector>(sceneNode, g_offsets.sceneAbsOrigin);
+	Vector forward;
+	AngleVectors(eyeAngles, &forward);
+	origin.z += kPlayerEyeHeight;
+	origin += forward * kFlashlightForwardOffset;
+
+	Teleport(light, &origin, &eyeAngles);
 }
 
 void MMSPlugin::TogglePlayerLight(int slot, CEntityInstance *pawn,
