@@ -9,7 +9,17 @@ for sdk_target in MMSPlugin.sdk_targets:
 
   binary.sources += [
     'src/plugin.cpp',
+    'src/gamedata.cpp',
+    'src/module_scanner.cpp',
+    'src/schema.cpp',
+    os.path.join(sdk['path'], 'entity2', 'entitysystem.cpp'),
+    os.path.join(sdk['path'], 'entity2', 'entityidentity.cpp'),
+    os.path.join(sdk['path'], 'entity2', 'entitykeyvalues.cpp'),
+    os.path.join(sdk['path'], 'tier1', 'keyvalues3.cpp'),
   ]
+
+  if binary.compiler.target.platform == 'windows':
+    binary.compiler.linkflags += ['psapi.lib']
 
   binary.custom = [builder.tools.Protoc(protoc = sdk_target.protoc, sources = [
     os.path.join(sdk['path'], 'common', 'network_connection.proto'),
