@@ -105,6 +105,10 @@ for task in MMSPlugin.binaries:
   # Examples:
   # packages[sdk_name].addFolder('some_folder_with_files')
   # packages[sdk_name].addFile('configs/config.cfg', 'other/new_name_for_a_config.cfg')
+  packages[sdk_name].addFile(
+    'gamedata/cs2_flashlight.games.txt',
+    os.path.join('gamedata', 'cs2_flashlight.games.txt')
+  )
 
   if task.debug:
     pdb_list.append(task.debug)

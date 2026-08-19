@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: Run version script tests
+      - name: Run repository tests
         run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Validate metadata JSON
         run: python3 -m json.tool plugin-metadata.json >/dev/null
@@ -54,6 +54,11 @@ jobs:
             --enable-optimize \
             --targets=x86_64
           ambuild
+      - name: Verify installation package layout
+        run: |
+          test -f build/package/cs2/addons/metamod/cs2_flashlight.vdf
+          test -f build/package/cs2/addons/cs2_flashlight/bin/linuxsteamrt64/cs2_flashlight.so
+          test -f build/package/cs2/addons/cs2_flashlight/gamedata/cs2_flashlight.games.txt
       - name: Upload package
         uses: actions/upload-artifact@v4
         with:
